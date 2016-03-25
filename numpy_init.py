@@ -29,11 +29,7 @@ def service_time(bus_num=50000, lambda_distribution={}):
             else:
                 valuelist[index].append(valuelist[index][i-1]+round(random.expovariate(value/3600.0),0))
 
-    headwaylist = []
-    for item in valuelist:
-        for value in item:
-            headwaylist.append(value)
-    headwaylist.append(0)
+    headwaylist = np.ravel(valuelist)
     headwaylist.sort()
 
     for i in range(bus_num):
