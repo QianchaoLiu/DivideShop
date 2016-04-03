@@ -10,10 +10,11 @@ import random
 import numpy as np
 import time
 import sys
-def service_time(bus_num=50000, lambda_distribution={}):
+def service_time(bus_num=50000, lambda_distribution={}, service_time_distribution={}):
     '''
     :param bus_num: All number of bus to simulate in this stop
     :param lambda_distribution: lambda of different route lines
+    :param service_time_distribution: service time of different route lines
     :return: average delay time of this stop
     '''
     # 一组仿真下的servicetime,
@@ -33,7 +34,7 @@ def service_time(bus_num=50000, lambda_distribution={}):
     for key,value in lambda_distribution.items():
         for i in range(car_per_route):
             if i==0:
-                valuelist[key].append([key, 0 + round(random.expovariate(value/3600.0),0)]  )
+                valuelist[key].append([key, 0 + round(random.expovariate(value/3600.0),0)] )
             else:
                 valuelist[key].append([key, valuelist[key][i-1][1] + round(random.expovariate(value/3600.0),0)])
     valuelist = np.array(valuelist)
@@ -42,12 +43,12 @@ def service_time(bus_num=50000, lambda_distribution={}):
 
     for i in range(bus_num):
         if i == 0:
-            Ti[i] = -1  # 该辆车随便分配一个不存在的线路
+            Ti[i] = -1  # 该辆车随便分配一个不存在的线路 暂定-1
             Hi[i] = round(0)
             ARRi[i] = Hi[i]  # 到达时间由lambda决定
             Pi[i] = 0  # 使用第一个泊位
             Wi[i] = 0  # 等待时间为0
-            Si[i] = round(random.expovariate(1/30.0),0)  # 服务时间
+            Si[i] = round(random.expovariate(1/30.0),0)  # 服务时间 暂定 30
             AVLj[0] = Hi[i] + Si[i]  # 第一个泊位的可用时间
             AVLj[1] = 0  # 第二个泊位的可用时间
         else:
@@ -55,7 +56,7 @@ def service_time(bus_num=50000, lambda_distribution={}):
             Ti[i] = headwaylist[i][0]
             # 经过Hi[i]来了下一辆车
             ARRi[i] = Hi[i] + ARRi[i-1]  #到达时间
-            Si[i] = round(random.expovariate(1/30.0),0)  # 服务时间
+            Si[i] = round(random.expovariate(1/service_time_distribution[Ti[i]]),0)  # 服务时间
             if AVLj[0] <= ARRi[i] and AVLj[1] <= ARRi[i]:  # 两个泊位都可用,进入第一个泊位
                 Wi[i] = 0
                 Pi[i] = 0
@@ -110,36 +111,48 @@ if __name__ == "__main__":
     NUMBER_ROUTELINE = 20
     STOP_NUM = 2
 
-    lambda_distribution= {}
+    # 到达率
+    lambda_distribution = {}
     for item in range(NUMBER_ROUTELINE):
         lambda_distribution[item] = 12
 
-    # 前一半条线路分配给第一个站点
+    # 服务时间
+    service_time_distribution = {}
+    for item in range(NUMBER_ROUTELINE):
+        service_time_distribution[item] = 30.0
+
+    # 线路分配
     distribution = [0 if i < NUMBER_ROUTELINE/STOP_NUM else 1 for i in range(0, NUMBER_ROUTELINE)]
 
-    stop_1_lambda_dict_from_0 ={}
-    stop_2_lambda_dict_from_0 ={}
-    sto_1_lambda_dict_by_id = {}
-    sto_2_lambda_dict_by_id = {}
+    # 提取到达率,服务时间
+    stop_1_lambda_dict_from_0 = {}
+    stop_2_lambda_dict_from_0 = {}
+    stop_1_lambda_dict_by_id = {}
+    stop_2_lambda_dict_by_id = {}
+
+    stop_1_service_time_dict_from_0 = {}
+    stop_2_service_time_dict_from_0 = {}
     for index,value in enumerate(distribution):
         if value == 0:
             stop_1_lambda_dict_from_0[len(stop_1_lambda_dict_from_0)] = lambda_distribution[index]
-            sto_1_lambda_dict_by_id[index] = lambda_distribution[index]
+            stop_1_lambda_dict_by_id[index] = lambda_distribution[index]
+            stop_1_service_time_dict_from_0[len(stop_1_service_time_dict_from_0)] = service_time_distribution[index]
         else:
             stop_2_lambda_dict_from_0[len(stop_2_lambda_dict_from_0)] = lambda_distribution[index]
-            sto_2_lambda_dict_by_id[index] = lambda_distribution[index]
+            stop_2_lambda_dict_by_id[index] = lambda_distribution[index]
+            stop_2_service_time_dict_from_0[len(stop_2_service_time_dict_from_0)] = service_time_distribution[index]
 
     start_time = time.time()
     simulation_count = 10
 
     total = np.zeros(STOP_NUM)
-    first_route = np.zeros(len(sto_1_lambda_dict_by_id))
-    second_route = np.zeros(len(sto_2_lambda_dict_by_id))
+    first_route = np.zeros(len(stop_1_lambda_dict_by_id))
+    second_route = np.zeros(len(stop_2_lambda_dict_by_id))
 
     for simulation_count in range(simulation_count):
         time_s = time.time()
-        data_1, data_1_detail = service_time(50000, stop_1_lambda_dict_from_0)
-        data_2, data_2_detail = service_time(50000, stop_2_lambda_dict_from_0)
+        data_1, data_1_detail = service_time(50000, stop_1_lambda_dict_from_0, stop_1_service_time_dict_from_0)
+        data_2, data_2_detail = service_time(50000, stop_2_lambda_dict_from_0, stop_2_service_time_dict_from_0)
         data_1_detail, data_2_detail = data_1_detail.values(), data_2_detail.values()
 
         total += np.array([data_1,data_2])
