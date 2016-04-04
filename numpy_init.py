@@ -4,12 +4,13 @@
 # 本版本重构__init__.py采用数值计算的方法计算平均等待时间
 
 # Demand at 2016/3/31: 1, add service time to parameter; 2, granularity of data ranged by route line
+# Demand at 2016/4/3: 1, distinguish blocking time from queuing time; 2, output the structural data; 3. percent of usage at each stop
+
 __author__ = 'liuqianchao'
 import os
 import random
 import numpy as np
 import time
-import math
 import sys
 def service_time(bus_num=50000, lambda_distribution={}, service_time_distribution={}):
     '''
@@ -22,14 +23,21 @@ def service_time(bus_num=50000, lambda_distribution={}, service_time_distributio
     Si = np.zeros(bus_num)  # Si存储Service time of bus i,服务时间满足均值为30s的负指数分布
     # round(random.expovariate(1/30.0),0)
     Wi = np.zeros(bus_num)  # Delay of the ith bus
+    Wdelayi = np.zeros(bus_num)  # 进站入泊位前的等待
+    Wblocki = np.zeros(bus_num)  # 离开泊位时的等待
     Hi = np.zeros(bus_num)  # Headway between the arrivals of the (i-1)th bus and the ith bus
     # round(random.expovariate(lambda_1/3600.0),0)
     AVLj = np.zeros(2)  # Time when the jth berth(j=1,2) become available
     ARRi = np.zeros(bus_num)  # Arrival time at the stop of the ith bus
     Pi = np.zeros(bus_num)  # Position of the berth where the ith bus to use
     Ti = np.zeros(bus_num)  # A tap to record the bus belongs to which route line
-    # 归并途径该站的所有线路的到达车辆
 
+    # Time
+    Berth1_Use = []  # looks like [[1,3],[7,9],[19,52]
+    Berth2_Use = []  # looks like [[2,4],[11,39]]
+    System_time = 0.0
+
+    # 归并途径该站的所有线路的到达车辆
     car_per_route = 10000
     valuelist = [[] for i in range(len(lambda_distribution))]
     for key,value in lambda_distribution.items():
@@ -42,6 +50,7 @@ def service_time(bus_num=50000, lambda_distribution={}, service_time_distributio
     headwaylist = list(valuelist.reshape((car_per_route*len(lambda_distribution),2)))
     headwaylist.sort(key=lambda x: x[1])
 
+    # 迭代
     for i in range(bus_num):
         if i == 0:
             Ti[i] = -1  # 该辆车随便分配一个不存在的线路 暂定-1
@@ -49,59 +58,94 @@ def service_time(bus_num=50000, lambda_distribution={}, service_time_distributio
             ARRi[i] = Hi[i]  # 到达时间由lambda决定
             Pi[i] = 0  # 使用第一个泊位
             Wi[i] = 0  # 等待时间为0
-            Si[i] = round(random.expovariate(1/30.0),0)  # 服务时间 暂定 30
+            Si[i] = round(random.expovariate(1/30.0), 0)  # 服务时间 暂定 30
             AVLj[0] = Hi[i] + Si[i]  # 第一个泊位的可用时间
             AVLj[1] = 0  # 第二个泊位的可用时间
+
+            Berth1_Use.append([0, AVLj[0]])
         else:
             Hi[i] = headwaylist[i][1] - headwaylist[i-1][1]
             Ti[i] = headwaylist[i][0]
             # 经过Hi[i]来了下一辆车
-            ARRi[i] = Hi[i] + ARRi[i-1]  #到达时间
-            Si[i] = round(random.expovariate(1/service_time_distribution[Ti[i]]),0)  # 服务时间
+            ARRi[i] = Hi[i] + ARRi[i-1]  # 到达时间
+            Si[i] = round(random.expovariate(1/service_time_distribution[Ti[i]]), 0)  # 服务时间
             if AVLj[0] <= ARRi[i] and AVLj[1] <= ARRi[i]:  # 两个泊位都可用,进入第一个泊位
                 Wi[i] = 0
                 Pi[i] = 0
                 AVLj[0] = ARRi[i] + Si[i]
+                Berth1_Use.append([ARRi[i], AVLj[0]])
             elif AVLj[0] > ARRi[i] and AVLj[1] <= ARRi[i]:  # 仅第二个泊位可用
 
                 Pi[i] = 1
-
-
-                Wi[i] = max(0, AVLj[0]-(ARRi[i]+Si[i]))  # 可能产生等待
+                Wi[i] = max(0, AVLj[0]-(ARRi[i]+Si[i]))  # 可能产生等待,仅可能产生block
+                Wblocki[i] = Wi[i]
 
                 AVLj[1] = ARRi[i] + Si[i] + Wi[i]
                 AVLj[0] = max(AVLj[0], AVLj[1])
-
-            elif AVLj[1] > ARRi[i]:  # 第二个泊位不可用  AVLj[1] > ARRi[i]
+                Berth2_Use.append([ARRi[i], AVLj[1]])
+            elif AVLj[1] > ARRi[i]:  # 第二个泊位不可用  AVLj[1] > ARRi[i] 现产生
                 if AVLj[0] <= AVLj[1] and Pi[i-1] == 1:  # 第一个泊位先空出来,一旦第二个泊位空出来,bus进入第一个泊位,
                     Wi[i] = AVLj[1] - ARRi[i]
+                    Wdelayi[i] = Wi[i]
                     Pi[i] = 0
                     AVLj[0] = ARRi[i] + Wi[i] + Si[i]
                     AVLj[1] = ARRi[i] + Wi[i]
-                elif AVLj[0] > AVLj[1] and Pi[i-1] == 1:  # 等第一个泊位的车结束服务,第一泊位的车和第二泊位的车同时驶出,bus进入第一个泊位.
+                    Berth1_Use.append([ARRi[i]+Wdelayi[i], AVLj[0]])
+                elif AVLj[0] > AVLj[1] and Pi[i-1] == 1:  # 第二个泊位的车先结束服务,等第一个泊位的车结束服务,第一泊位的车和第二泊位的车同时驶出,bus进入第一个泊位.
                     Wi[i] = AVLj[0]-ARRi[i]
+                    Wdelayi[i] = Wi[i]
                     Pi[i] = 0
                     AVLj[0] = ARRi[i] + Wi[i] + Si[i]
                     AVLj[1] = ARRi[i] + Wi[i]
+                    Berth1_Use.append([ARRi[i]+Wdelayi[i], AVLj[0]])
                 elif AVLj[0] <= AVLj[1] and Pi[i-1] == 0:
                     None
 
                 elif AVLj[0] > AVLj[1] and Pi[i-1] == 0:  #大 小
-                    Wi[i] = max(0, AVLj[0]-ARRi[i], AVLj[0]-ARRi[i] + AVLj[0]-(ARRi[i]+AVLj[0]-ARRi[i] +Si[i]))
+                    Wi[i] = max(0, AVLj[0]-ARRi[i], AVLj[0]-ARRi[i] + AVLj[0]-(ARRi[i]+AVLj[0]-ARRi[i] + Si[i]))
+                    Wdelayi[i] = max(0, AVLj[0] - ARRi[i])
+                    Wblocki[i] = max(0, AVLj[0] - (ARRi[i] + AVLj[0] - ARRi[i] + Si[i]))
                     Pi[i] = 1
                     AVLj[1] = ARRi[i] + Wi[i] + Si[i]
                     AVLj[0] = max(AVLj[0], AVLj[1])
+                    Berth2_Use.append([ARRi[i]+Wdelayi[i], AVLj[1]])
+        if i == bus_num-1:
+            System_time = AVLj[Pi[i]]
+    # Time
+    total_time_1 = np.zeros(System_time)
+    total_time_2 = np.zeros(System_time)
+    for item in Berth1_Use:
+        total_time_1[slice(item[0], item[1]+1)] = 1
+    for item in Berth2_Use:
+        total_time_2[slice(item[0], item[1]+1)] = 1
+    berth1_bus = np.count_nonzero(total_time_1)
+    berth2_bus = np.count_nonzero(total_time_2)
 
-    result_list = [[] for item in range(len(lambda_distribution))]
+    and_operation = np.logical_and(total_time_1,total_time_2)
+    both_use_time = np.count_nonzero(and_operation)
+    use_percent = [berth1_bus/System_time, berth2_bus/System_time, both_use_time/System_time]
+
+    # waiting 分流成各个线路
+    result_list_total = [[] for item in range(len(lambda_distribution))]
+    result_list_delay = [[] for item in range(len(lambda_distribution))]
+    result_list_block = [[] for item in range(len(lambda_distribution))]
+
     for index,value in enumerate(Wi):
         if Ti[index] != -1:
-            result_list[int(Ti[index])].append(value)
-    return np.average(Wi), {key: np.average(value) for key in lambda_distribution.keys() for value in result_list}, {key: np.std(value) for key in lambda_distribution.keys() for value in result_list}
+            result_list_total[int(Ti[index])].append(value)
+            result_list_delay[int(Ti[index])].append(Wdelayi[index])
+            result_list_block[int(Ti[index])].append(Wblocki[index])
+
+    result_list_total_average, result_list_total_std= [np.average(item) for item in result_list_total], [np.std(item) for item in result_list_total]
+    result_list_delay_average, result_list_delay_std = [np.average(item) for item in result_list_delay], [np.std(item) for item in result_list_delay]
+    result_list_block_average, result_list_block_std = [np.average(item) for item in result_list_block], [np.std(item) for item in result_list_block]
+
+    # 以站为单位,以线路为单位,站的使用率
+    return np.average(Wi), [[result_list_total_average, result_list_total_std], [result_list_delay_average, result_list_delay_std],[result_list_block_average, result_list_block_std]], use_percent
 
 if __name__ == "__main__":
-    #kwargs = {}
-    #if len(sys.argv) > 1:
-    #    kwargs[1] = sys.argv[1]
+    if os.path.exists('result.txt'):
+        os.remove('result.txt')
     if '--help' in sys.argv or '--h' in sys.argv:
         print("Build a simulation to evaluate ")
 
@@ -112,14 +156,14 @@ if __name__ == "__main__":
     # 到达率
     lambda_distribution = {}
     for item in range(NUMBER_ROUTELINE):
-        lambda_distribution[item] = 12
+        lambda_distribution[item] = 12.0
     # 服务时间
     service_time_distribution = {}
     for item in range(NUMBER_ROUTELINE):
         service_time_distribution[item] = 30.0
 
     # 线路分配
-    distribution = [0 if i < NUMBER_ROUTELINE/STOP_NUM else 1 for i in range(0, NUMBER_ROUTELINE)]
+    distribution = [0 if i < 10 else 1 for i in range(0, NUMBER_ROUTELINE)]
 
     # 提取到达率,服务时间
     stop_1_lambda_dict_from_0 = {}
@@ -142,33 +186,29 @@ if __name__ == "__main__":
     start_time = time.time()
     simulation_count = 10
 
-    total = np.zeros(STOP_NUM)
-    first_route_average = np.zeros(len(stop_1_lambda_dict_by_id))
-    second_route_average = np.zeros(len(stop_2_lambda_dict_by_id))
-    first_route_std = np.zeros(len(stop_1_lambda_dict_by_id))
-    second_route_std = np.zeros(len(stop_1_lambda_dict_by_id))
-
-
-
+    total = np.zeros(2)
+    routedata1 = np.zeros((3,2,len(stop_1_lambda_dict_from_0)))
+    routedata2 = np.zeros((3,2,len(stop_2_lambda_dict_from_0)))
+    time_percent = np.zeros((2,3))
     for simulation_count in range(simulation_count):
         time_s = time.time()
-        data_1, data_1_detail_average, data_1_detail_std = service_time(50000, stop_1_lambda_dict_from_0, stop_1_service_time_dict_from_0)
-        data_2, data_2_detail_avergae, data_2_detail_std = service_time(50000, stop_2_lambda_dict_from_0, stop_2_service_time_dict_from_0)
-        data_1_detail_average, data_2_detail_avergae, data_1_detail_std, data_2_detail_std = data_1_detail_average.values(), data_2_detail_avergae.values(), data_1_detail_std.values(), data_2_detail_std.values()
+        data_1, route_data_1, stop1_use_percent = service_time(50000, stop_1_lambda_dict_from_0, stop_1_service_time_dict_from_0)
+        data_2, route_data_2, stop2_use_percent = service_time(50000, stop_2_lambda_dict_from_0, stop_2_service_time_dict_from_0)
 
-        total += np.array([data_1,data_2])
-        first_route_average += np.array(data_1_detail_average)
-        second_route_average += np.array(data_2_detail_avergae)
-        first_route_std += np.array(data_1_detail_std)
-        second_route_std += np.array(data_2_detail_std)
-
-        #print time.time()-time_s,[data_1,data_2]
+        total += np.array([data_1, data_2])
+        routedata1 += np.array(route_data_1)
+        routedata2 += np.array(route_data_2)
+        time_percent += np.array([stop1_use_percent, stop2_use_percent])
 
     total /= simulation_count
-    first_route_average /= simulation_count
-    second_route_average /= simulation_count
-    first_route_std /= simulation_count
-    second_route_std /= simulation_count
+    routedata1 /= simulation_count
+    routedata2 /= simulation_count
 
+    time_percent /= simulation_count
+    with open('result.txt','a') as f:
+        f.write(str(routedata1))
+        f.write('\n')
+        f.write(str(routedata2))
     print "After {:.0f} s of simulation, the average waiting time of {} stops are: {}".format(time.time()-start_time, STOP_NUM, total)
-    print "Route lines at stop1:{}, \nroute lines at stop2:{}".format({key: value for key in stop_1_lambda_dict_by_id.keys() for value in first_route_average}, {key: value for key in stop_2_lambda_dict_by_id.keys() for value in second_route_average})
+    print "   --usage percent at stop1: berth1: {}%, berth2: {}%, both berth: {}%".format(time_percent[0][0], time_percent[0][1], time_percent[0][2])
+    print "   --usage percent at stop2: berth1: {}%, berth2: {}%, both berth: {}%".format(time_percent[1][0], time_percent[1][1], time_percent[1][2])
