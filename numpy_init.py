@@ -9,6 +9,7 @@ import os
 import random
 import numpy as np
 import time
+import math
 import sys
 def service_time(bus_num=50000, lambda_distribution={}, service_time_distribution={}):
     '''
@@ -90,15 +91,12 @@ def service_time(bus_num=50000, lambda_distribution={}, service_time_distributio
                     Pi[i] = 1
                     AVLj[1] = ARRi[i] + Wi[i] + Si[i]
                     AVLj[0] = max(AVLj[0], AVLj[1])
-    result_dict={}
-    for key,value in lambda_distribution.items():
-        result_dict[key] = 0
-    for index,value in enumerate(Ti):
-        if value!=-1:
-            result_dict[value] += Wi[index]
-    for key,value in result_dict.items():
-        result_dict[key] /= list(Ti).count(key)
-    return np.average(Wi),result_dict
+
+    result_list = [[] for item in range(len(lambda_distribution))]
+    for index,value in enumerate(Wi):
+        if Ti[index] != -1:
+            result_list[int(Ti[index])].append(value)
+    return np.average(Wi), {key: np.average(value) for key in lambda_distribution.keys() for value in result_list}, {key: np.std(value) for key in lambda_distribution.keys() for value in result_list}
 
 if __name__ == "__main__":
     #kwargs = {}
@@ -115,7 +113,6 @@ if __name__ == "__main__":
     lambda_distribution = {}
     for item in range(NUMBER_ROUTELINE):
         lambda_distribution[item] = 12
-
     # 服务时间
     service_time_distribution = {}
     for item in range(NUMBER_ROUTELINE):
@@ -146,22 +143,32 @@ if __name__ == "__main__":
     simulation_count = 10
 
     total = np.zeros(STOP_NUM)
-    first_route = np.zeros(len(stop_1_lambda_dict_by_id))
-    second_route = np.zeros(len(stop_2_lambda_dict_by_id))
+    first_route_average = np.zeros(len(stop_1_lambda_dict_by_id))
+    second_route_average = np.zeros(len(stop_2_lambda_dict_by_id))
+    first_route_std = np.zeros(len(stop_1_lambda_dict_by_id))
+    second_route_std = np.zeros(len(stop_1_lambda_dict_by_id))
+
+
 
     for simulation_count in range(simulation_count):
         time_s = time.time()
-        data_1, data_1_detail = service_time(50000, stop_1_lambda_dict_from_0, stop_1_service_time_dict_from_0)
-        data_2, data_2_detail = service_time(50000, stop_2_lambda_dict_from_0, stop_2_service_time_dict_from_0)
-        data_1_detail, data_2_detail = data_1_detail.values(), data_2_detail.values()
+        data_1, data_1_detail_average, data_1_detail_std = service_time(50000, stop_1_lambda_dict_from_0, stop_1_service_time_dict_from_0)
+        data_2, data_2_detail_avergae, data_2_detail_std = service_time(50000, stop_2_lambda_dict_from_0, stop_2_service_time_dict_from_0)
+        data_1_detail_average, data_2_detail_avergae, data_1_detail_std, data_2_detail_std = data_1_detail_average.values(), data_2_detail_avergae.values(), data_1_detail_std.values(), data_2_detail_std.values()
 
         total += np.array([data_1,data_2])
-        first_route += np.array(data_1_detail)
-        second_route += np.array(data_2_detail)
+        first_route_average += np.array(data_1_detail_average)
+        second_route_average += np.array(data_2_detail_avergae)
+        first_route_std += np.array(data_1_detail_std)
+        second_route_std += np.array(data_2_detail_std)
 
-        print time.time()-time_s,[data_1,data_2]
+        #print time.time()-time_s,[data_1,data_2]
+
     total /= simulation_count
-    first_route /= simulation_count
-    second_route /= simulation_count
+    first_route_average /= simulation_count
+    second_route_average /= simulation_count
+    first_route_std /= simulation_count
+    second_route_std /= simulation_count
+
     print "After {:.0f} s of simulation, the average waiting time of {} stops are: {}".format(time.time()-start_time, STOP_NUM, total)
-    print "Route lines at stop1:{}, \nroute lines at stop2:{}".format(first_route, second_route)
+    print "Route lines at stop1:{}, \nroute lines at stop2:{}".format({key: value for key in stop_1_lambda_dict_by_id.keys() for value in first_route_average}, {key: value for key in stop_2_lambda_dict_by_id.keys() for value in second_route_average})
