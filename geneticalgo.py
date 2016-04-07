@@ -9,7 +9,7 @@ class geneticalgo(object):
     """
     def __init__(self, gene_len=20, population_size=50, cross_rate=0.5, mutation_rate=0.015, elitism_rate=0.1, iter_num=50):
         # 接收系统参数,self.__dict__.update({k:v for k,v in locals().items() if k!='self'})
-        self.gen_len = gene_len
+        self.gene_len = gene_len
         self.population_size = population_size
         self.cross_rate = cross_rate
         self.mutation_rate = mutation_rate
@@ -26,7 +26,7 @@ class geneticalgo(object):
 
     def initialize(self):
         # 初始化一个种群,该种群随机生成,种群的大小设定为popluation_size, 每个个体的基因长度为gene_len
-        self.poplist = np.random.randint(0, 2, size=(self.population_size, self.gen_len)).tolist()
+        self.poplist = np.random.randint(0, 2, size=(self.population_size, self.gene_len)).tolist()
 
     def evaluate(self, evaluate_func):
         # 评价,计算每一个个体的得分(适应度),这里采用delay time的倒数, 评价后按照分数维从高到低排序
@@ -46,7 +46,8 @@ class geneticalgo(object):
                 print eva
 
         self.pop_score_list.sort(key=lambda x: x[1], reverse=True)  # 从大到小
-        return self.pop_score_list[0][0]
+        return self.pop_score_list[0][0], self.pop_score_list[0][1]
+
     def select(self):
         # 从群体中选择优胜个体,淘汰劣质个体
         # 轮盘赌选法,适应度越高选择概率越大(比如a,b,c适应度分为a,b,c,则a被选的概率为a/(a+b+c))
@@ -98,16 +99,16 @@ class geneticalgo(object):
         for index,item in enumerate(self.poplist):
             rand = random.random()
             if rand < self.mutation_rate:
-                randint = random.randint(0, self.gen_len)
+                randint = random.randint(0, self.gene_len)
                 self.poplist[index][randint] = random.choice([0,1])
 
     def iter(self,func):
         # 迭代,迭代的代数一般为100-500代
         for i in range(self.iter_num):
-            score = self.evaluate(evaluate_func=func)  #
+            gene, score = self.evaluate(evaluate_func=func)
             self.select()
             self.mutation()
-            print '第{}代,该代的最优得分为:{}'.format(i+1,score)
+            print '第{}代,该代的最优得分为:{},最优基因为{}'.format(i+1, score, gene)
 
 
 if __name__ == "__main__":
