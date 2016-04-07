@@ -5,9 +5,10 @@
 
 # Demand at 2016/3/31: 1, add service time to parameter; 2, granularity of data ranged by route line
 # Demand at 2016/4/3: 1, distinguish blocking time from queuing time; 2, output the structural data; 3. percent of usage at each stop
-
+# Demand at 2016/4/7: 1.check gamma distribution; 2.add genetic algorithm
 __author__ = 'liuqianchao'
 import os
+
 import random
 import numpy as np
 import time
@@ -144,6 +145,7 @@ def service_time(bus_num=50000, lambda_distribution={}, service_time_distributio
     return np.average(Wi), [[result_list_total_average, result_list_total_std], [result_list_delay_average, result_list_delay_std],[result_list_block_average, result_list_block_std]], use_percent
 
 if __name__ == "__main__":
+
     if os.path.exists('result.txt'):
         os.remove('result.txt')
     if '--help' in sys.argv or '--h' in sys.argv:
@@ -157,6 +159,8 @@ if __name__ == "__main__":
     lambda_distribution = {}
     for item in range(NUMBER_ROUTELINE):
         lambda_distribution[item] = 12.0
+
+    #4,5,6
     # 服务时间
     service_time_distribution = {}
     for item in range(NUMBER_ROUTELINE):
@@ -164,6 +168,7 @@ if __name__ == "__main__":
 
     # 线路分配
     distribution = [0 if i < 10 else 1 for i in range(0, NUMBER_ROUTELINE)]
+    #20-30
 
     # 提取到达率,服务时间
     stop_1_lambda_dict_from_0 = {}
@@ -182,14 +187,13 @@ if __name__ == "__main__":
             stop_2_lambda_dict_from_0[len(stop_2_lambda_dict_from_0)] = lambda_distribution[index]
             stop_2_lambda_dict_by_id[index] = lambda_distribution[index]
             stop_2_service_time_dict_from_0[len(stop_2_service_time_dict_from_0)] = service_time_distribution[index]
-
     start_time = time.time()
     simulation_count = 10
 
     total = np.zeros(2)
-    routedata1 = np.zeros((3,2,len(stop_1_lambda_dict_from_0)))
-    routedata2 = np.zeros((3,2,len(stop_2_lambda_dict_from_0)))
-    time_percent = np.zeros((2,3))
+    routedata1 = np.zeros((3, 2, len(stop_1_lambda_dict_from_0)))
+    routedata2 = np.zeros((3, 2, len(stop_2_lambda_dict_from_0)))
+    time_percent = np.zeros((2, 3))
     for simulation_count in range(simulation_count):
         time_s = time.time()
         data_1, route_data_1, stop1_use_percent = service_time(50000, stop_1_lambda_dict_from_0, stop_1_service_time_dict_from_0)
@@ -205,7 +209,7 @@ if __name__ == "__main__":
     routedata2 /= simulation_count
 
     time_percent /= simulation_count
-    with open('result.txt','a') as f:
+    with open('result.txt', 'a') as f:
         f.write(str(routedata1))
         f.write('\n')
         f.write(str(routedata2))
