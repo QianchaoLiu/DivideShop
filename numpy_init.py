@@ -6,13 +6,63 @@
 # Demand at 2016/3/31: 1, add service time to parameter; 2, granularity of data ranged by route line
 # Demand at 2016/4/3: 1, distinguish blocking time from queuing time; 2, output the structural data; 3. percent of usage at each stop
 # Demand at 2016/4/7: 1.check gamma distribution; 2.add genetic algorithm
-__author__ = 'liuqianchao'
 import os
-
 import random
 import numpy as np
 import time
 import sys
+__author__ = 'liuqianchao'
+
+# 到达率
+LAMBDA_DISTRIBUTION = {
+    0: 30.0,
+    1: 12.0,
+    2: 12.0,
+    3: 12.0,
+    4: 12.0,
+    5: 12.0,
+    6: 12.0,
+    7: 12.0,
+    8: 12.0,
+    9: 12.0,
+    10: 12.0,
+    11: 12.0,
+    12: 12.0,
+    13: 12.0,
+    14: 12.0,
+    15: 12.0,
+    16: 12.0,
+    17: 12.0,
+    18: 12.0,
+    19: 12.0,
+}
+
+#4,5,6
+# 服务时间
+SERVICE_TIME_DISTRIBUTION = {
+    0: 30.0,
+    1: 30.0,
+    2: 30.0,
+    3: 30.0,
+    4: 30.0,
+    5: 30.0,
+    6: 30.0,
+    7: 30.0,
+    8: 30.0,
+    9: 30.0,
+    10: 30.0,
+    11: 30.0,
+    12: 30.0,
+    13: 30.0,
+    14: 30.0,
+    15: 30.0,
+    16: 30.0,
+    17: 30.0,
+    18: 30.0,
+    19: 30.0,
+}
+
+
 def service_time(bus_num=50000, lambda_distribution={}, service_time_distribution={}):
     '''
     :param bus_num: All number of bus to simulate in this stop
@@ -39,7 +89,7 @@ def service_time(bus_num=50000, lambda_distribution={}, service_time_distributio
     System_time = 0.0
 
     # 归并途径该站的所有线路的到达车辆
-    car_per_route = 10000
+    car_per_route = int(2.5 * float(bus_num) / len(lambda_distribution))
     valuelist = [[] for i in range(len(lambda_distribution))]
     for key,value in lambda_distribution.items():
         for i in range(car_per_route):
@@ -144,31 +194,19 @@ def service_time(bus_num=50000, lambda_distribution={}, service_time_distributio
     # 以站为单位,以线路为单位,站的使用率
     return np.average(Wi), [[result_list_total_average, result_list_total_std], [result_list_delay_average, result_list_delay_std],[result_list_block_average, result_list_block_std]], use_percent
 
-if __name__ == "__main__":
-
+def init(gene):
     if os.path.exists('result.txt'):
         os.remove('result.txt')
     if '--help' in sys.argv or '--h' in sys.argv:
         print("Build a simulation to evaluate ")
 
-    print "Simulation has begun:"
+    #print "Simulation has begun:"
     NUMBER_ROUTELINE = 20
     STOP_NUM = 2
 
-    # 到达率
-    lambda_distribution = {}
-    for item in range(NUMBER_ROUTELINE):
-        lambda_distribution[item] = 12.0
-
-    #4,5,6
-    # 服务时间
-    service_time_distribution = {}
-    for item in range(NUMBER_ROUTELINE):
-        service_time_distribution[item] = 30.0
 
     # 线路分配
-    distribution = [0 if i < 10 else 1 for i in range(0, NUMBER_ROUTELINE)]
-    #20-30
+    distribution = gene
 
     # 提取到达率,服务时间
     stop_1_lambda_dict_from_0 = {}
@@ -180,13 +218,13 @@ if __name__ == "__main__":
     stop_2_service_time_dict_from_0 = {}
     for index,value in enumerate(distribution):
         if value == 0:
-            stop_1_lambda_dict_from_0[len(stop_1_lambda_dict_from_0)] = lambda_distribution[index]
-            stop_1_lambda_dict_by_id[index] = lambda_distribution[index]
-            stop_1_service_time_dict_from_0[len(stop_1_service_time_dict_from_0)] = service_time_distribution[index]
+            stop_1_lambda_dict_from_0[len(stop_1_lambda_dict_from_0)] = LAMBDA_DISTRIBUTION[index]
+            stop_1_lambda_dict_by_id[index] = LAMBDA_DISTRIBUTION[index]
+            stop_1_service_time_dict_from_0[len(stop_1_service_time_dict_from_0)] = SERVICE_TIME_DISTRIBUTION[index]
         else:
-            stop_2_lambda_dict_from_0[len(stop_2_lambda_dict_from_0)] = lambda_distribution[index]
-            stop_2_lambda_dict_by_id[index] = lambda_distribution[index]
-            stop_2_service_time_dict_from_0[len(stop_2_service_time_dict_from_0)] = service_time_distribution[index]
+            stop_2_lambda_dict_from_0[len(stop_2_lambda_dict_from_0)] = LAMBDA_DISTRIBUTION[index]
+            stop_2_lambda_dict_by_id[index] = LAMBDA_DISTRIBUTION[index]
+            stop_2_service_time_dict_from_0[len(stop_2_service_time_dict_from_0)] = SERVICE_TIME_DISTRIBUTION[index]
     start_time = time.time()
     simulation_count = 10
 
@@ -211,8 +249,15 @@ if __name__ == "__main__":
     time_percent /= simulation_count
     with open('result.txt', 'a') as f:
         f.write(str(routedata1))
-        f.write('\n')
+        f.write('\n\n')
         f.write(str(routedata2))
-    print "After {:.0f} s of simulation, the average waiting time of {} stops are: {}".format(time.time()-start_time, STOP_NUM, total)
-    print "   --usage percent at stop1: berth1: {}%, berth2: {}%, both berth: {}%".format(time_percent[0][0], time_percent[0][1], time_percent[0][2])
-    print "   --usage percent at stop2: berth1: {}%, berth2: {}%, both berth: {}%".format(time_percent[1][0], time_percent[1][1], time_percent[1][2])
+        f.write('\n\n')
+        f.write(str(time_percent))
+    return data_1 + data_2
+
+    #print "After {:.0f} s of simulation, the average waiting time of {} stops are: {}".format(time.time()-start_time, STOP_NUM, total)
+    #print "   --usage percent at stop1: berth1: {}%, berth2: {}%, both berth: {}%".format(time_percent[0][0], time_percent[0][1], time_percent[0][2])
+    #print "   --usage percent at stop2: berth1: {}%, berth2: {}%, both berth: {}%".format(time_percent[1][0], time_percent[1][1], time_percent[1][2])
+
+#if __name__ == "__main__":
+#    pass
