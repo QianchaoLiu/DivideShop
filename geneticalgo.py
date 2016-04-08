@@ -36,8 +36,9 @@ class geneticalgo(object):
             for ard_item in self.already_evaluate:
                 if item == ard_item[0]:
 
-                    eva = ard_item[1]
+                    eva = ard_item
                     self.pop_score_list.append(eva)
+                    print eva
                     break
                     # 一旦break就不会执行else
             else:
@@ -107,11 +108,12 @@ class geneticalgo(object):
 
     def mutation(self):
         # 变异率一般为0.001到0.1
-        for index,item in enumerate(self.poplist):
+
+        for index, item in enumerate(self.poplist):
             rand = random.random()
             if rand < self.mutation_rate:
-                randint = random.randint(0, self.gene_len)
-                self.poplist[index][randint] = random.choice([0,1])
+                randint = random.randint(0, self.gene_len-1)  # para1 <= randit <= para2
+                self.poplist[index][randint] = random.choice([0, 1])
 
     def iter(self,func):
         # 迭代,迭代的代数一般为100-500代
@@ -125,6 +127,6 @@ class geneticalgo(object):
 
 if __name__ == "__main__":
 
-    ob = geneticalgo(gene_len=20, population_size=8, cross_rate=0.5, mutation_rate=0.015, elitism_rate=0.1, iter_num=50)
+    ob = geneticalgo(gene_len=20, population_size=50, cross_rate=0.5, mutation_rate=0.015, elitism_rate=0.1, iter_num=50)
     ob.initialize()
     ob.iter(numpy_init.init)
