@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Divide Stop Online Demo</title>
+</head>
+<body>
+<h1>Divide Stop Online Demo.</h1>
+{% if flag %}
+<form action="" method="post">
+    <h3>Stop numbers:(default value:2)</h3>
+
+    <h3>Route line numbers:</h3>
+    <input type=text name=routenumber>
+
+    <h3>Distribution of Routes:</h3>
+    <input type=text name=routedis>
+
+    <h3>Distribution of Lambda:</h3>
+    <input type=text name=lambdadis>
+
+    <h3>Distribution of Service time:</h3>
+    <input type=text name=servicetimedis>
+    <br><br>
+    <input type=submit value="Submit">
+</form>
+
+{% else %}
+    stop number: 2
+    route number: {{l['routenumber']}}<br>
+    route distribution: {{l['routedis']}}<br>
+    service time distribution: {{l['servicetimedis']}}
+    total delay: {{td}}
+
+{% endif%}
+</body>
+</html>

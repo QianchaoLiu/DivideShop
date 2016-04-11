@@ -127,6 +127,10 @@ class geneticalgo(object):
 
 if __name__ == "__main__":
 
-    ob = geneticalgo(gene_len=20, population_size=50, cross_rate=0.5, mutation_rate=0.015, elitism_rate=0.1, iter_num=50)
-    ob.initialize()
-    ob.iter(numpy_init.init)
+    #ob = geneticalgo(gene_len=20, population_size=50, cross_rate=0.5, mutation_rate=0.015, elitism_rate=0.1, iter_num=50)
+    #ob.initialize()
+    #ob.iter(numpy_init.init)
+    #print 1.0/numpy_init.init([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    #print 1.0/numpy_init.init([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    print 724.827,887.735439996,739.45846
+    print numpy_init.init([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0])
