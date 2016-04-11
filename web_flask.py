@@ -1,21 +1,33 @@
 # encoding=utf-8
 from flask import Flask,url_for,render_template,request,redirect
+from flask.ext.bootstrap import Bootstrap
+from flask.ext.wtf import Form
+from wtforms import StringField, SubmitField
+from wtforms.validators import Required
 import numpy_init
 
 author = 'liuqianchao'
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'liuqianchao'
+bootstrap = Bootstrap(app)
 
-
+class InputForm(Form):
+    routenumber = StringField('Route line numbers: 20')
+    routedis = StringField('Distribution of Routes: 1,1,0,0...(length is equal to route line number)', validators=[Required])
+    servicetimedis = StringField('Distribution of Lambda: 12,12,12...(length is equal to route line number)')
+    lambdadis =  StringField('Distribution of Service time: 30,30,30...(length is equal to route line number)')
+    summit = SubmitField('Submit')
 
 @app.route('/', methods=['GET', 'POST'])
 def mainpage(flag = True):
     if request.method == 'POST':
-        list = request.form
-        inpt = list['routedis']
+        form = InputForm()
+        inpt = form.routedis.data
         total_delay = numpy_init.init([int(i) for i in inpt.split(',')])
-        return render_template('main.html', flag=False, l=list, td=total_delay)
+        return render_template('main.html', flag=False, l=form, td=total_delay)
     else:
-        return render_template('main.html', flag=True)
+        form = InputForm()
+        return render_template('main.html', flag=True, form=form)
 
 @app.route('/showresult')
 def showresult(forms):
